@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Binary Search without functions, animated</title>
+<style>
+:root{
+  --bg:#f3f6fa;--fg:#14213d;--muted:#5b6b82;--card:#ffffff;--line:#d5dde8;
+  --box:#e3e9f2;--ok:#34c27a;--okb:#1c8f55;--cmp:#2f6fed;--hl:#dce8ff;--chip:#fff3d6;--chipb:#e0a100;
+  --lo:#12818f;--mi:#c98700;--hi:#9b3fc4;--midbg:#f4a300;--term:#0d1424;--termfg:#d7f5dd;
+  box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0f1726;--fg:#e8eefc;--muted:#97a6c0;--card:#17223a;--line:#2a3a5a;
+  --box:#243352;--cmp:#6ea0ff;--hl:#22365f;--chip:#3a3015;--chipb:#f4a300;
+  --lo:#38c4d3;--mi:#f4a300;--hi:#d08cf0;--term:#0a0f1c;}}
+:root[data-theme="dark"]{
+  --bg:#0f1726;--fg:#e8eefc;--muted:#97a6c0;--card:#17223a;--line:#2a3a5a;
+  --box:#243352;--cmp:#6ea0ff;--hl:#22365f;--chip:#3a3015;--chipb:#f4a300;
+  --lo:#38c4d3;--mi:#f4a300;--hi:#d08cf0;--term:#0a0f1c;}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 ui-rounded,"Trebuchet MS","Segoe UI",system-ui,sans-serif}
+main{max-width:760px;margin:0 auto;padding:20px 16px 32px}
+h1{font-size:1.6rem;margin:0 0 6px;letter-spacing:-.01em}
+.lead{color:var(--muted);margin:0 0 18px;max-width:62ch}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px}
+.target{display:inline-block;background:var(--chip);border:2px solid var(--chipb);border-radius:999px;padding:3px 16px;font-weight:600;margin-bottom:14px}
+.target b{font-size:1.25rem}
+#stage{position:relative;height:166px;overflow:hidden}
+.item,.tag,.idx{position:absolute;top:0;left:0;transition:transform var(--t,500ms) ease}
+.item{top:6px;height:58px;display:flex;align-items:center;justify-content:center;border-radius:10px;font-weight:700;font-size:1.25rem;
+  background:var(--box);border:2px solid transparent;transition:opacity .3s,background .3s,box-shadow .3s}
+.item.dim{opacity:.3}
+.item.mid{background:var(--midbg);color:#1b1300;border-color:#b87b00}
+.item.found{background:var(--ok);color:#06210f;border-color:var(--okb);box-shadow:0 0 0 4px color-mix(in srgb,var(--ok) 40%,transparent)}
+.idx{color:var(--muted);font-size:.8rem;text-align:center;top:74px}
+.tag{text-align:center;font-size:.85rem;font-weight:700;opacity:0;white-space:nowrap;transition:transform var(--t,500ms) ease,opacity .25s}
+.tag.show{opacity:1}
+#t-low{color:var(--lo)}#t-mid{color:var(--mi)}#t-high{color:var(--hi)}
+#msg{min-height:4.6em;font-size:1.05rem;margin:4px 0 0}
+h2{font-size:1.05rem;margin:0 0 10px}
+#watch{display:flex;flex-wrap:wrap;gap:8px}
+.var{font:600 .95rem ui-monospace,Consolas,Menlo,monospace;background:var(--box);border:2px solid transparent;border-radius:8px;padding:4px 10px;transition:border-color .3s,background .3s}
+.var.chg{border-color:var(--chipb);background:var(--chip)}
+.var b{color:var(--cmp)}
+#out{margin:0;background:var(--term);color:var(--termfg);border-radius:10px;padding:10px 14px;font:.95rem/1.5 ui-monospace,Consolas,Menlo,monospace;min-height:3.4em}
+#out .p{color:#7e8fae}
+.controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.controls+.controls{margin-top:10px}
+button{font:inherit;font-weight:600;color:var(--fg);background:var(--box);border:1px solid var(--line);border-radius:10px;padding:8px 14px;cursor:pointer}
+button.primary{background:var(--cmp);color:#fff;border-color:transparent}
+button:disabled{opacity:.5;cursor:default}
+button:focus-visible,input:focus-visible{outline:3px solid var(--cmp);outline-offset:2px}
+label{color:var(--muted);font-size:.9rem;display:flex;align-items:center;gap:8px}
+#speedl{margin-left:auto}
+#key{font:inherit;width:72px;padding:6px 8px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--fg)}
+#step{color:var(--muted);font-size:.9rem;margin-top:10px}
+pre.code{margin:0;font:.92rem/1.7 ui-monospace,Consolas,Menlo,monospace;overflow-x:auto}
+.cl{display:block;padding:0 10px;border-radius:6px;white-space:pre}
+.cl.on{background:var(--hl);box-shadow:inset 3px 0 0 var(--cmp)}
+@media (prefers-reduced-motion:reduce){.item,.tag,.idx{transition:none}}
+</style>
+</head>
+<body>
+<main>
+  <h1>Binary search without functions</h1>
+  <p class="lead">Here the whole search lives inside <code>main()</code>: just variables and a loop, no separate function. Watch the variables <code>low</code>, <code>high</code>, <code>mid</code> and <code>found</code> change as the half of the array that can't contain the target is thrown away.</p>
+
+  <div class="card">
+    <div class="target">Looking for: <b id="keyv"></b></div>
+    <div id="stage" aria-label="Sorted array being searched"></div>
+    <p id="msg" aria-live="polite"></p>
+  </div>
+
+  <div class="card">
+    <h2>Variables in memory</h2>
+    <div id="watch"></div>
+  </div>
+
+  <div class="card">
+    <div class="controls">
+      <button id="play" class="primary">Play</button>
+      <button id="prev">Back</button>
+      <button id="next">Next step</button>
+      <button id="reset">Restart</button>
+      <label id="speedl">Speed <input id="speed" type="range" min="1" max="5" value="3"></label>
+    </div>
+    <div class="controls">
+      <label>Search for <input id="key" type="number" step="1"></label>
+      <button id="shuffle">New numbers</button>
+      <button id="missing">Try a missing number</button>
+    </div>
+    <div id="step"></div>
+  </div>
+
+  <div class="card">
+    <h2>The C program (all inside main)</h2>
+    <pre class="code" id="code"></pre>
+  </div>
+
+  <div class="card">
+    <h2>Program output</h2>
+    <pre id="out"></pre>
+  </div>
+</main>
+
+<script>
+const $ = s => document.querySelector(s);
+const stage = $('#stage'), codeEl = $('#code');
+let vals = [5, 12, 18, 23, 31, 42, 56, 67, 74, 89], key = 23;
+let snaps = [], idx = 0, timer = null, els = [], tags = {}, lines = [], W = 64;
+const plural = (c, w) => c + ' ' + w + (c === 1 ? '' : 's');
+
+function codeLines() {
+  const n = vals.length;
+  return [
+    '#include <stdio.h>',
+    ' ',
+    'int main() {',
+    '    int arr[] = {' + vals.join(', ') + '};',
+    '    int n = ' + n + ', key = ' + key + ';',
+    '    int low = 0, high = n - 1, mid, found = -1;',
+    ' ',
+    '    while (low <= high) {',
+    '        mid = (low + high) / 2;',
+    '        if (arr[mid] == key) {',
+    '            found = mid;',
+    '            break;',
+    '        } else if (arr[mid] < key)',
+    '            low = mid + 1;',
+    '        else',
+    '            high = mid - 1;',
+    '    }',
+    ' ',
+    '    if (found != -1)',
+    '        printf("Found at index %d\\n", found);',
+    '    else',
+    '        printf("Not found\\n");',
+    '    return 0;',
+    '}'
+  ];
+}
+
+function build() {
+  const n = vals.length, S = [];
+  let low = 0, high = n - 1, c = 0, mv = null;
+  const snap = o => S.push(Object.assign({ low, high, mid: -1, found: -1, mv, comps: c, line: [], msg: '', out: '' }, o));
+  snap({ line: [3, 4, 5], msg: 'Start. main() declares the sorted array, n = ' + n + ', key = ' + key + ', and low = 0, high = ' + (n - 1) + ', mid, found = -1. The value -1 in found means "not found yet".' });
+  while (low <= high) {
+    const mid = Math.floor((low + high) / 2), left = high - low + 1, v = vals[mid];
+    c++; mv = mid;
+    snap({ mid, comps: c - 1, line: [7, 8],
+      msg: 'The loop runs because low <= high. Range arr[' + low + '..' + high + '] has ' + plural(left, 'element') + '. mid = (' + low + ' + ' + high + ') / 2 = ' + mid + ', so we look at arr[' + mid + '] = ' + v + '.' });
+    if (v === key) {
+      snap({ mid, line: [9], msg: 'Is arr[' + mid + '] = ' + v + ' equal to key (' + key + ')?  Yes, a match!' });
+      snap({ mid, found: mid, line: [10, 11], msg: 'found = mid stores ' + mid + ' in found, and break jumps out of the loop right away.' });
+      snap({ mid, found: mid, line: [18, 19], out: 'Found at index ' + mid,
+        msg: 'found is ' + mid + ', not -1, so printf prints the result. It took ' + plural(c, 'comparison') + '; linear search might have needed up to ' + n + '.' });
+      snaps = S; idx = 0; return;
+    }
+    if (v < key) {
+      low = mid + 1;
+      snap({ mid, line: [12, 13], msg: v + ' < ' + key + ', so the key cannot be in the left half. Throw it away: low = mid + 1 = ' + low + '.' });
+    } else {
+      high = mid - 1;
+      snap({ mid, line: [14, 15], msg: v + ' > ' + key + ', so the key cannot be in the right half. Throw it away: high = mid - 1 = ' + high + '.' });
+    }
+  }
+  snap({ line: [16], msg: 'Now low (' + low + ') is greater than high (' + high + '), so the condition low <= high is false and the while loop ends. found is still -1.' });
+  snap({ line: [18, 20, 21], out: 'Not found', msg: 'found is -1, so the else branch runs and printf prints "Not found" (after ' + plural(c, 'comparison') + ').' });
+  snaps = S; idx = 0;
+}
+
+function setup() {
+  stop(); stage.innerHTML = ''; els = []; tags = {};
+  const n = vals.length;
+  W = Math.max(30, Math.min(72, Math.floor(stage.clientWidth / n)));
+  $('#keyv').textContent = key; $('#key').value = key;
+  vals.forEach((val, p) => {
+    const d = document.createElement('div'); d.className = 'item'; d.textContent = val;
+    d.style.width = (W - 6) + 'px'; d.style.fontSize = W < 44 ? '.95rem' : ''; d.style.transform = 'translateX(' + (p * W + 3) + 'px)';
+    stage.appendChild(d); els.push(d);
+    const l = document.createElement('div'); l.className = 'idx'; l.style.width = W + 'px';
+    l.style.transform = 'translateX(' + p * W + 'px)'; l.textContent = W < 56 ? p : 'arr[' + p + ']'; stage.appendChild(l);
+  });
+  [['low', 96], ['mid', 116], ['high', 136]].forEach(([k, y]) => {
+    const t = document.createElement('div'); t.className = 'tag'; t.id = 't-' + k; t.dataset.y = y;
+    t.textContent = '\u25B2' + (W < 44 ? '' : ' ') + k; t.style.width = W + 'px'; stage.appendChild(t); tags[k] = t;
+  });
+  codeEl.innerHTML = '';
+  codeLines().forEach(t => { const d = document.createElement('span'); d.className = 'cl'; d.textContent = t; codeEl.appendChild(d); });
+  lines = [...codeEl.children];
+  build(); render();
+}
+
+function watchVals(s) {
+  return [['n', vals.length], ['key', key], ['low', s.low], ['high', s.high], ['mid', s.mv === null ? '?' : s.mv], ['found', s.found]];
+}
+
+function render() {
+  const s = snaps[idx], n = vals.length;
+  els.forEach((el, p) => {
+    let c = 'item';
+    if (p === s.found) c += ' found';
+    else if (p === s.mid) c += ' mid';
+    else if (p < s.low || p > s.high) c += ' dim';
+    el.className = c;
+  });
+  [['low', s.low], ['mid', s.mid], ['high', s.high]].forEach(([k, p]) => {
+    const t = tags[k];
+    if (p >= 0 && p < n) { t.style.transform = 'translate(' + p * W + 'px,' + t.dataset.y + 'px)'; t.classList.add('show'); }
+    else t.classList.remove('show');
+  });
+  const prev = idx > 0 ? watchVals(snaps[idx - 1]) : null;
+  $('#watch').innerHTML = watchVals(s).map(([k, v], i) =>
+    '<span class="var' + (prev && prev[i][1] !== v ? ' chg' : '') + '">' + k + ' = <b>' + v + '</b></span>').join('');
+  $('#msg').textContent = s.msg;
+  $('#out').innerHTML = '<span class="p">$ ./a.out</span>\n' + (s.out ? s.out : '');
+  $('#step').textContent = 'Step ' + idx + ' of ' + (snaps.length - 1) + '  \u00B7  Comparisons so far: ' + s.comps;
+  lines.forEach((l, k) => l.classList.toggle('on', s.line.includes(k)));
+  $('#prev').disabled = idx === 0; $('#next').disabled = idx === snaps.length - 1;
+}
+
+const delay = () => 2300 - $('#speed').value * 400;
+function tick() {
+  if (idx >= snaps.length - 1) { stop(); return; }
+  idx++; render(); timer = setTimeout(tick, delay());
+}
+function play() {
+  if (timer) { stop(); return; }
+  if (idx >= snaps.length - 1) idx = 0;
+  $('#play').textContent = 'Pause'; render(); timer = setTimeout(tick, delay());
+}
+function stop() { clearTimeout(timer); timer = null; $('#play').textContent = snaps.length && idx >= snaps.length - 1 ? 'Replay' : 'Play'; }
+function setSpeed() { stage.style.setProperty('--t', Math.min(550, delay() * 0.6) + 'ms'); }
+
+$('#play').onclick = play;
+$('#next').onclick = () => { stop(); if (idx < snaps.length - 1) idx++; render(); stop(); };
+$('#prev').onclick = () => { stop(); if (idx > 0) idx--; render(); stop(); };
+$('#reset').onclick = () => { stop(); idx = 0; render(); $('#play').textContent = 'Play'; };
+$('#shuffle').onclick = () => {
+  const pool = Array.from({ length: 99 }, (_, i) => i + 1);
+  for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
+  vals = pool.slice(0, 10).sort((a, b) => a - b); key = vals[Math.floor(Math.random() * 10)]; setup();
+};
+$('#missing').onclick = () => {
+  let k; do { k = 1 + Math.floor(Math.random() * 99); } while (vals.includes(k));
+  key = k; setup();
+};
+$('#key').onchange = e => { const k = parseInt(e.target.value, 10); if (!isNaN(k)) { key = k; setup(); } else e.target.value = key; };
+$('#speed').oninput = setSpeed;
+let rt; window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { const keep = idx; setup(); idx = Math.min(keep, snaps.length - 1); render(); }, 150); });
+setSpeed(); setup();
+</script>
+</body>
+</html>

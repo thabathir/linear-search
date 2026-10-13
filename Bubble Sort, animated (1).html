@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Bubble Sort, animated</title>
+<style>
+:root{
+  --bg:#f3f6fa;--fg:#14213d;--muted:#5b6b82;--card:#ffffff;--line:#d5dde8;
+  --box:#e3e9f2;--sorted:#bfe8e4;--sortedb:#1b9aaa;--key:#f4a300;--cmp:#2f6fed;--hl:#dce8ff;
+  box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0f1726;--fg:#e8eefc;--muted:#97a6c0;--card:#17223a;--line:#2a3a5a;
+  --box:#243352;--sorted:#17525a;--sortedb:#38c4d3;--key:#f4a300;--cmp:#6ea0ff;--hl:#22365f;}}
+:root[data-theme="dark"]{
+  --bg:#0f1726;--fg:#e8eefc;--muted:#97a6c0;--card:#17223a;--line:#2a3a5a;
+  --box:#243352;--sorted:#17525a;--sortedb:#38c4d3;--key:#f4a300;--cmp:#6ea0ff;--hl:#22365f;}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 ui-rounded,"Trebuchet MS","Segoe UI",system-ui,sans-serif}
+main{max-width:760px;margin:0 auto;padding:20px 16px 32px}
+h1{font-size:1.6rem;margin:0 0 6px;letter-spacing:-.01em}
+.lead{color:var(--muted);margin:0 0 18px;max-width:62ch}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px}
+#stage{position:relative;height:192px;overflow:hidden}
+.item,.tag,.idx{position:absolute;top:0;left:0;transition:transform var(--t,500ms) ease}
+.item{height:58px;display:flex;align-items:center;justify-content:center;border-radius:10px;font-weight:700;font-size:1.3rem;
+  background:var(--box);border:2px solid transparent;transition:transform var(--t,500ms) ease,background .3s,box-shadow .3s}
+.item.sorted{background:var(--sorted);border-color:var(--sortedb)}
+.item.cmp{border-color:var(--cmp);box-shadow:0 0 0 3px color-mix(in srgb,var(--cmp) 35%,transparent)}
+.item.key{background:var(--key);color:#1b1300;border-color:#b87b00;z-index:2}
+.idx{color:var(--muted);font-size:.8rem;text-align:center;top:138px}
+.tag{text-align:center;font-size:.85rem;font-weight:700;color:var(--cmp);opacity:0;top:0;transition:transform var(--t,500ms) ease,opacity .25s}
+.tag.show{opacity:1}
+#msg{min-height:3.2em;font-size:1.08rem;margin:4px 0 0}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;color:var(--muted);font-size:.85rem;margin-top:10px}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-1px;border:2px solid transparent}
+.controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+button{font:inherit;font-weight:600;color:var(--fg);background:var(--box);border:1px solid var(--line);border-radius:10px;padding:8px 14px;cursor:pointer}
+button.primary{background:var(--cmp);color:#fff;border-color:transparent}
+button:disabled{opacity:.5;cursor:default}
+button:focus-visible,input:focus-visible{outline:3px solid var(--cmp);outline-offset:2px}
+label{color:var(--muted);font-size:.9rem;display:flex;align-items:center;gap:8px;margin-left:auto}
+#step{color:var(--muted);font-size:.9rem;margin-top:10px}
+pre{margin:0;font:.92rem/1.7 ui-monospace,Consolas,Menlo,monospace;overflow-x:auto}
+.cl{display:block;padding:0 10px;border-radius:6px;white-space:pre}
+.cl.on{background:var(--hl);box-shadow:inset 3px 0 0 var(--cmp)}
+h2{font-size:1.05rem;margin:0 0 10px}
+@media (prefers-reduced-motion:reduce){.item,.tag,.idx{transition:none}}
+</style>
+</head>
+<body>
+<main>
+  <h1>Bubble sort, step by step</h1>
+  <p class="lead">Think of bubbles rising in a glass of soda. Compare two neighbours at a time and swap them if the left one is bigger. After each pass, the biggest number has floated to the right end.</p>
+
+  <div class="card">
+    <div id="stage" aria-label="Array being sorted"></div>
+    <p id="msg" aria-live="polite"></p>
+    <div class="legend">
+      <span><i style="background:var(--sorted);border-color:var(--sortedb)"></i>sorted part (final)</span>
+      <span><i style="border-color:var(--cmp)"></i>neighbours being compared</span>
+      <span><i style="background:var(--key)"></i>bigger number moving right</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="controls">
+      <button id="play" class="primary">Play</button>
+      <button id="prev">Back</button>
+      <button id="next">Next step</button>
+      <button id="reset">Restart</button>
+      <button id="shuffle">New numbers</button>
+      <label>Speed <input id="speed" type="range" min="1" max="5" value="3"></label>
+    </div>
+    <div id="step"></div>
+  </div>
+
+  <div class="card">
+    <h2>The same thing in C</h2>
+    <pre id="code"></pre>
+  </div>
+</main>
+
+<script>
+const CODE = [
+"for (i = 0; i < n - 1; i++) {",
+"    for (j = 0; j < n - i - 1; j++) {",
+"        if (arr[j] > arr[j + 1]) {",
+"            temp = arr[j];",
+"            arr[j] = arr[j + 1];",
+"            arr[j + 1] = temp;",
+"        }",
+"    }",
+"}"
+];
+const $ = s => document.querySelector(s);
+const stage = $('#stage'), codeEl = $('#code');
+CODE.forEach(t => { const d = document.createElement('span'); d.className = 'cl'; d.textContent = t; codeEl.appendChild(d); });
+const lines = [...codeEl.children];
+
+let vals = [7, 3, 5, 2, 9, 1, 6];
+let snaps = [], idx = 0, timer = null, els = [], tags = {}, W = 64;
+const Y = 34, UP = 0, DOWN = 70;
+
+function build() {
+  const n = vals.length, order = vals.map((_, i) => i), pos = order.slice(), S = [];
+  const v = p => vals[order[p]];
+  const snap = o => S.push(Object.assign({ pos: pos.slice(), from: n, jP: -1, up: -1, down: -1, line: [], msg: '' }, o));
+  snap({ line: [0], msg: 'Start. Bubble sort compares neighbours and swaps them if they are in the wrong order. Big numbers bubble to the right.' });
+  for (let i = 0; i < n - 1; i++) {
+    const last = n - i - 1, from = n - i;
+    snap({ from, line: [0, 1], msg: 'Pass ' + (i + 1) + ': compare neighbours from the left, up to position ' + last + '.' });
+    for (let j = 0; j < last; j++) {
+      const a = order[j], b = order[j + 1], swap = vals[a] > vals[b];
+      if (swap) {
+        snap({ from, jP: j, up: a, down: b, line: [2], msg: 'Is ' + vals[a] + ' > ' + vals[b] + '?  Yes, they are in the wrong order, so swap them.' });
+        order[j] = b; order[j + 1] = a; pos[a] = j + 1; pos[b] = j;
+        snap({ from, jP: j, up: a, down: b, line: [3, 4, 5], msg: 'Swapped. ' + vals[a] + ' moves one step to the right.' });
+      } else {
+        snap({ from, jP: j, line: [2], msg: 'Is ' + vals[a] + ' > ' + vals[b] + '?  No, they are already in order. Leave them.' });
+      }
+    }
+    snap({ from: last, line: [0], msg: 'Pass ' + (i + 1) + ' done. ' + v(last) + ' bubbled to position ' + last + ' and is now in its final place.' });
+  }
+  snap({ from: 0, msg: 'Done! After n-1 passes every number is in its final place, so the array is sorted.' });
+  snaps = S; idx = 0;
+}
+
+function setup() {
+  stop(); stage.innerHTML = ''; els = []; tags = {};
+  const n = vals.length;
+  W = Math.max(40, Math.min(76, Math.floor(stage.clientWidth / n)));
+  vals.forEach(val => {
+    const d = document.createElement('div'); d.className = 'item'; d.textContent = val; d.style.width = (W - 8) + 'px'; stage.appendChild(d); els.push(d);
+  });
+  for (let p = 0; p < n; p++) {
+    const l = document.createElement('div'); l.className = 'idx'; l.style.width = W + 'px';
+    l.style.transform = 'translateX(' + p * W + 'px)'; l.textContent = W < 56 ? p : 'arr[' + p + ']'; stage.appendChild(l);
+  }
+  [['j', 'j'], ['j1', 'j+1']].forEach(([k, txt]) => {
+    const t = document.createElement('div'); t.className = 'tag'; t.textContent = '\u25B2 ' + txt;
+    t.style.width = W + 'px'; stage.appendChild(t); tags[k] = t;
+  });
+  build(); render();
+}
+
+function render() {
+  const s = snaps[idx];
+  els.forEach((el, id) => {
+    const p = s.pos[id], up = s.up === id, down = s.down === id;
+    el.style.transform = 'translate(' + (p * W + 4) + 'px,' + (up ? UP : down ? DOWN : Y) + 'px)';
+    let c = 'item';
+    if (p >= s.from) c += ' sorted';
+    if (up) c += ' key';
+    else if (down || (s.jP >= 0 && (p === s.jP || p === s.jP + 1))) c += ' cmp';
+    el.className = c;
+  });
+  [['j', s.jP], ['j1', s.jP + 1]].forEach(([k, p]) => {
+    const t = tags[k];
+    if (s.jP >= 0) { t.style.transform = 'translate(' + p * W + 'px,162px)'; t.classList.add('show'); }
+    else t.classList.remove('show');
+  });
+  $('#msg').textContent = s.msg;
+  $('#step').textContent = 'Step ' + idx + ' of ' + (snaps.length - 1);
+  lines.forEach((l, k) => l.classList.toggle('on', s.line.includes(k)));
+  $('#prev').disabled = idx === 0; $('#next').disabled = idx === snaps.length - 1;
+}
+
+const delay = () => 2000 - $('#speed').value * 350;
+function tick() {
+  if (idx >= snaps.length - 1) { stop(); return; }
+  idx++; render(); timer = setTimeout(tick, delay());
+}
+function play() {
+  if (timer) { stop(); return; }
+  if (idx >= snaps.length - 1) idx = 0;
+  $('#play').textContent = 'Pause'; render(); timer = setTimeout(tick, delay());
+}
+function stop() { clearTimeout(timer); timer = null; $('#play').textContent = snaps.length && idx >= snaps.length - 1 ? 'Replay' : 'Play'; }
+function setSpeed() { stage.style.setProperty('--t', Math.min(550, delay() * 0.7) + 'ms'); }
+
+$('#play').onclick = play;
+$('#next').onclick = () => { stop(); if (idx < snaps.length - 1) idx++; render(); stop(); };
+$('#prev').onclick = () => { stop(); if (idx > 0) idx--; render(); stop(); };
+$('#reset').onclick = () => { stop(); idx = 0; render(); $('#play').textContent = 'Play'; };
+$('#shuffle').onclick = () => {
+  const pool = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+  for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
+  vals = pool.slice(0, 7); setup();
+};
+$('#speed').oninput = setSpeed;
+let rt; window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { const keep = idx; setup(); idx = keep; render(); }, 150); });
+setSpeed(); setup();
+</script>
+</body>
+</html>

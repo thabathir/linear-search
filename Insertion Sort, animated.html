@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Insertion Sort, animated</title>
+<style>
+:root{
+  --bg:#f3f6fa;--fg:#14213d;--muted:#5b6b82;--card:#ffffff;--line:#d5dde8;
+  --box:#e3e9f2;--sorted:#bfe8e4;--sortedb:#1b9aaa;--key:#f4a300;--cmp:#2f6fed;--hl:#dce8ff;
+  box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0f1726;--fg:#e8eefc;--muted:#97a6c0;--card:#17223a;--line:#2a3a5a;
+  --box:#243352;--sorted:#17525a;--sortedb:#38c4d3;--key:#f4a300;--cmp:#6ea0ff;--hl:#22365f;}}
+:root[data-theme="dark"]{
+  --bg:#0f1726;--fg:#e8eefc;--muted:#97a6c0;--card:#17223a;--line:#2a3a5a;
+  --box:#243352;--sorted:#17525a;--sortedb:#38c4d3;--key:#f4a300;--cmp:#6ea0ff;--hl:#22365f;}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 ui-rounded,"Trebuchet MS","Segoe UI",system-ui,sans-serif}
+main{max-width:760px;margin:0 auto;padding:20px 16px 32px}
+h1{font-size:1.6rem;margin:0 0 6px;letter-spacing:-.01em}
+.lead{color:var(--muted);margin:0 0 18px;max-width:62ch}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px}
+#stage{position:relative;height:170px;overflow:hidden}
+.item,.slot{position:absolute;top:0;left:0;height:58px;display:flex;align-items:center;justify-content:center;
+  border-radius:10px;font-weight:700;font-size:1.3rem;transition:transform var(--t,500ms) ease,background .3s,box-shadow .3s}
+.item{background:var(--box);border:2px solid transparent}
+.item.sorted{background:var(--sorted);border-color:var(--sortedb)}
+.item.cmp{border-color:var(--cmp);box-shadow:0 0 0 3px color-mix(in srgb,var(--cmp) 35%,transparent)}
+.item.key{background:var(--key);color:#1b1300;border-color:#b87b00;z-index:2;box-shadow:0 8px 14px rgba(0,0,0,.25)}
+.slot{border:2px dashed var(--muted);opacity:0}
+.idx{position:absolute;top:146px;left:0;text-align:center;color:var(--muted);font-size:.8rem}
+#msg{min-height:3.2em;font-size:1.08rem;margin:4px 0 0}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;color:var(--muted);font-size:.85rem;margin-top:10px}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-1px;border:2px solid transparent}
+.controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+button{font:inherit;font-weight:600;color:var(--fg);background:var(--box);border:1px solid var(--line);border-radius:10px;padding:8px 14px;cursor:pointer}
+button.primary{background:var(--cmp);color:#fff;border-color:transparent}
+button:focus-visible,input:focus-visible{outline:3px solid var(--cmp);outline-offset:2px}
+label{color:var(--muted);font-size:.9rem;display:flex;align-items:center;gap:8px;margin-left:auto}
+#step{color:var(--muted);font-size:.9rem;margin-top:10px}
+pre{margin:0;font:.92rem/1.7 ui-monospace,Consolas,Menlo,monospace;overflow-x:auto}
+.cl{display:block;padding:0 10px;border-radius:6px;white-space:pre;color:var(--fg)}
+.cl.on{background:var(--hl);box-shadow:inset 3px 0 0 var(--cmp)}
+h2{font-size:1.05rem;margin:0 0 10px}
+@media (prefers-reduced-motion:reduce){.item,.slot{transition:none}}
+</style>
+</head>
+<body>
+<main>
+  <h1>Insertion sort, step by step</h1>
+  <p class="lead">Think of sorting playing cards in your hand. Pick up the next card, slide it left past every card that is bigger, and drop it into its place.</p>
+
+  <div class="card">
+    <div id="stage" aria-label="Array being sorted"></div>
+    <p id="msg" aria-live="polite"></p>
+    <div class="legend">
+      <span><i style="background:var(--sorted);border-color:var(--sortedb)"></i>sorted part</span>
+      <span><i style="background:var(--key)"></i>key (card in hand)</span>
+      <span><i style="border-color:var(--cmp)"></i>being compared</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="controls">
+      <button id="play" class="primary">Play</button>
+      <button id="prev">Back</button>
+      <button id="next">Next step</button>
+      <button id="reset">Restart</button>
+      <button id="shuffle">New numbers</button>
+      <label>Speed <input id="speed" type="range" min="1" max="5" value="3"></label>
+    </div>
+    <div id="step"></div>
+  </div>
+
+  <div class="card">
+    <h2>The same thing in C</h2>
+    <pre id="code"></pre>
+  </div>
+</main>
+
+<script>
+const CODE = [
+"for (i = 1; i < n; i++) {",
+"    key = arr[i];",
+"    j = i - 1;",
+"    while (j >= 0 && arr[j] > key) {",
+"        arr[j + 1] = arr[j];",
+"        j--;",
+"    }",
+"    arr[j + 1] = key;",
+"}"
+];
+const $ = s => document.querySelector(s);
+const stage = $('#stage'), codeEl = $('#code');
+CODE.forEach(t => { const d = document.createElement('span'); d.className = 'cl'; d.textContent = t; codeEl.appendChild(d); });
+const lines = [...codeEl.children];
+
+let vals = [7, 3, 5, 2, 9, 1, 6], snaps = [], idx = 0, timer = null, els = [], slot, W = 64;
+
+function build() {
+  const n = vals.length, order = vals.map((_, i) => i), pos = order.slice();
+  const S = [];
+  const snap = (o) => S.push(Object.assign({ pos: pos.slice(), lifted: null, hole: -1, cmp: [], i: 0, line: -1, msg: '' }, o));
+  const val = id => vals[id];
+  snap({ msg: 'Start. The first number is already a sorted list of one. We will take the rest one at a time.', line: 0, i: 0 });
+  for (let i = 1; i < n; i++) {
+    const kid = order[i], key = val(kid);
+    let j = i - 1;
+    order[i] = null;
+    snap({ lifted: kid, hole: i, i, line: 1, msg: 'Pick up the key: ' + key + '. Lift it out and compare it with the sorted numbers on its left.' });
+    while (j >= 0) {
+      const other = order[j];
+      const bigger = val(other) > key;
+      snap({ lifted: kid, hole: j + 1, cmp: [other], i, line: 3,
+        msg: 'Is ' + val(other) + ' > ' + key + '?  ' + (bigger ? 'Yes, so ' + val(other) + ' must move right.' : 'No, so the key stays right after ' + val(other) + '.') });
+      if (!bigger) break;
+      order[j + 1] = other; order[j] = null; pos[other] = j + 1; pos[kid] = j;
+      snap({ lifted: kid, hole: j, cmp: [other], i, line: 4, msg: 'Shift ' + val(other) + ' one place to the right.' });
+      j--;
+    }
+    if (j < 0) snap({ lifted: kid, hole: 0, i, line: 3, msg: 'We reached the start of the array, so the key is the smallest so far.' });
+    order[j + 1] = kid; pos[kid] = j + 1;
+    snap({ i, line: 7, msg: 'Drop ' + key + ' into position ' + (j + 1) + '. The first ' + (i + 1) + ' numbers are now sorted.' });
+  }
+  snap({ i: n, line: 8, msg: 'Done! Every number has been inserted, so the whole array is sorted.' });
+  snaps = S; idx = 0;
+}
+
+function setup() {
+  stop(); stage.innerHTML = ''; els = [];
+  const n = vals.length;
+  W = Math.max(40, Math.min(76, Math.floor(stage.clientWidth / n)));
+  const bw = W - 8;
+  vals.forEach((v, id) => {
+    const d = document.createElement('div'); d.className = 'item'; d.textContent = v; d.style.width = bw + 'px'; stage.appendChild(d); els.push(d);
+  });
+  slot = document.createElement('div'); slot.className = 'slot'; slot.style.width = bw + 'px'; stage.appendChild(slot);
+  for (let p = 0; p < n; p++) {
+    const l = document.createElement('div'); l.className = 'idx'; l.style.width = W + 'px'; l.style.transform = 'translateX(' + p * W + 'px)'; l.textContent = 'arr[' + p + ']';
+    if (W < 56) l.textContent = p; stage.appendChild(l);
+  }
+  build(); render();
+}
+
+function render() {
+  const s = snaps[idx], n = vals.length;
+  els.forEach((el, id) => {
+    const lifted = s.lifted === id;
+    el.style.transform = 'translate(' + (s.pos[id] * W + 4) + 'px,' + (lifted ? 6 : 76) + 'px)';
+    el.className = 'item' + (lifted ? ' key' : '') + (!lifted && s.cmp.includes(id) ? ' cmp' : '') + (!lifted && s.pos[id] <= s.i && s.i < n + 1 && (s.lifted === null || s.pos[id] < s.hole || s.pos[id] > s.hole) && s.pos[id] <= s.i ? ' sorted' : '');
+  });
+  slot.style.opacity = s.hole >= 0 ? 1 : 0;
+  slot.style.transform = 'translate(' + (Math.max(s.hole, 0) * W + 4) + 'px,76px)';
+  $('#msg').textContent = s.msg;
+  $('#step').textContent = 'Step ' + idx + ' of ' + (snaps.length - 1);
+  lines.forEach((l, k) => l.classList.toggle('on', k === s.line || (s.line === 1 && k === 2)));
+  $('#prev').disabled = idx === 0; $('#next').disabled = idx === snaps.length - 1;
+}
+
+const delay = () => 2000 - $('#speed').value * 350;
+function tick() {
+  if (idx >= snaps.length - 1) { stop(); return; }
+  idx++; render(); timer = setTimeout(tick, delay());
+}
+function play() {
+  if (timer) { stop(); return; }
+  if (idx >= snaps.length - 1) idx = 0;
+  $('#play').textContent = 'Pause'; render(); timer = setTimeout(tick, delay());
+}
+function stop() { clearTimeout(timer); timer = null; $('#play').textContent = idx >= snaps.length - 1 && snaps.length ? 'Replay' : 'Play'; }
+function setSpeed() { stage.style.setProperty('--t', Math.min(550, delay() * 0.7) + 'ms'); }
+
+$('#play').onclick = play;
+$('#next').onclick = () => { stop(); if (idx < snaps.length - 1) idx++; render(); stop(); };
+$('#prev').onclick = () => { stop(); if (idx > 0) idx--; render(); stop(); };
+$('#reset').onclick = () => { stop(); idx = 0; render(); $('#play').textContent = 'Play'; };
+$('#shuffle').onclick = () => {
+  const pool = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+  for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
+  vals = pool.slice(0, 7); setup();
+};
+$('#speed').oninput = setSpeed;
+let rt; window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { const keep = idx; setup(); idx = keep; render(); }, 150); });
+setSpeed(); setup();
+</script>
+</body>
+</html>
